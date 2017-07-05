@@ -48,7 +48,11 @@ Vagrant.configure("2") do |config|
   #############################################################################
   # Uncomment *AFTER* first vagrant up so the VBadditions has time to install #
   #############################################################################
-  #config.vm.synced_folder "../data", "/vagrant_data"
+  if File.exist?(".vagrant/machines/default/virtualbox/action_provision")
+    config.vm.synced_folder "../data", "/vagrant_data"
+  else
+    # hold off on the sync
+  end
 
   # Provider-specific configuration so you can fine-tune various
   # backing providers for Vagrant. These expose provider-specific options.
