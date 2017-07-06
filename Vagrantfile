@@ -73,12 +73,26 @@ Vagrant.configure("2") do |config|
   # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
   # documentation for more information about their specific syntax and use.
   config.vm.provision "shell", inline: <<-SHELL
-    apt-get update        && \
-    apt-get upgrade -y    && \
-    apt-get install -y    \
-      build-essential     \
-      module-assistant    && \
-    m-a -i prepare        && \
+    apt-get update                      && \
+    apt-get upgrade -y                  && \
+    apt-get install -y                  \
+      apt-transport-https               \
+      build-essential                   \
+      ca-certificates                   \
+      curl                              \
+      gnupg2                            \
+      module-assistant                  \
+      software-properties-common        && \
+    m-a -i prepare                      && \
     sh /vagrant/VBoxLinuxAdditions.run
+    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
+    add-apt-repository \
+      "deb [arch=amd64] https://download.docker.com/linux/debian \
+      $(lsb_release -cs) \
+      stable"
+    apt-get update  && \
+    apt-get install -y \
+      docker-ce        \
+      docker-compose
   SHELL
 end
