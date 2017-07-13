@@ -12,7 +12,7 @@ Vagrant.configure("2") do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
-  config.vm.box = "base"
+  config.vm.box = "debian/stretch64"
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -63,8 +63,36 @@ Vagrant.configure("2") do |config|
   # Enable provisioning with a shell script. Additional provisioners such as
   # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
   # documentation for more information about their specific syntax and use.
-  # config.vm.provision "shell", inline: <<-SHELL
-  #   apt-get update
-  #   apt-get install -y apache2
-  # SHELL
+   config.vm.provision "shell", inline: <<-SHELL
+    # Refresh debian install and minimum extra packages
+    echo "======= PROVISIONING ==========" 
+    echo "======= apt refresh ===========" 
+    apt-get update
+    apt-get upgrade -y
+    apt-get install -y            \
+      apt-transport-https         \
+      ca-certificates             \
+      curl                        \
+      software-properties-common
+    # Add kubernetes
+    echo "======= Kubernetes ==========" 
+    curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && \
+    chmod +x ./kubectl && \
+    mv ./kubectl /usr/local/bin/kubectl
+    # Add Docker ( seperate repo needed )
+    echo "======= Docker ==============" 
+    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
+    add-apt-repository \
+      "deb [arch=amd64] https://download.docker.com/linux/debian \
+      $(lsb_release -cs) \
+      stable"
+    apt-get update  && \
+    apt-get install -y \
+      docker-ce        \
+      docker-compose    
+    #curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.20.0/minikube-linux-amd64 && \
+    #chmod +x minikube && \
+    #mv minikube /usr/local/bin/
+    echo "======= PROVISIONING COMPLETE =" 
+   SHELL
 end
