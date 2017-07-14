@@ -1,6 +1,10 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+# Define some globals
+FLANNEL_NETWORK = "192.168.1.0/16"
+
+
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
@@ -60,13 +64,20 @@ Vagrant.configure("2") do |config|
   # View the documentation for the provider you are using for more
   # information on available options.
 
+  #  ██████╗ ██████╗  ██████╗ ██╗   ██╗██╗███████╗██╗ ██████╗ ███╗   ██╗██╗███╗   ██╗ ██████╗
+  #  ██╔══██╗██╔══██╗██╔═══██╗██║   ██║██║██╔════╝██║██╔═══██╗████╗  ██║██║████╗  ██║██╔════╝
+  #  ██████╔╝██████╔╝██║   ██║██║   ██║██║███████╗██║██║   ██║██╔██╗ ██║██║██╔██╗ ██║██║  ███╗
+  #  ██╔═══╝ ██╔══██╗██║   ██║╚██╗ ██╔╝██║╚════██║██║██║   ██║██║╚██╗██║██║██║╚██╗██║██║   ██║
+  #  ██║     ██║  ██║╚██████╔╝ ╚████╔╝ ██║███████║██║╚██████╔╝██║ ╚████║██║██║ ╚████║╚██████╔╝
+  #  ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═══╝  ╚═╝╚══════╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝
+  #
   # Enable provisioning with a shell script. Additional provisioners such as
   # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
   # documentation for more information about their specific syntax and use.
    config.vm.provision "shell", inline: <<-SHELL
     # Refresh debian install and minimum extra packages
-    echo "======= PROVISIONING ==========" 
-    echo "======= apt refresh ===========" 
+    echo "======= PROVISIONING =========="
+    echo "======= apt refresh ==========="
     apt-get update
     apt-get upgrade -y
     apt-get install -y            \
@@ -74,13 +85,36 @@ Vagrant.configure("2") do |config|
       ca-certificates             \
       curl                        \
       software-properties-common
+
     # Add kubernetes
-    echo "======= Kubernetes ==========" 
-    curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && \
-    chmod +x ./kubectl && \
-    mv ./kubectl /usr/local/bin/kubectl
-    # Add Docker ( seperate repo needed )
-    echo "======= Docker ==============" 
+    echo "======= Kubernetes =========="
+    # Based on GutHubGist from @apokalyptik
+    # see https://gist.github.com/apokalyptik/99cefb3d2e16b9b0c3141e222f3267db
+
+    echo "--- Step 1: Get Ready ---"
+    # Note: Not as clean as it *could* be current release ( 1.6.7 )is  a small 5 meg
+    #       tar with an install command to get the binaries ( which pulls the sub-package )
+    #       for now following @apokalyptik process but pulling the second layer which was
+    #       listed in the change log announcement
+    #        (https://groups.google.com/forum/#!topic/kubernetes-announce/LnJD3DBAJig)
+    #TODO: try pulling the official latest release and run the "installer" in it
+    curl \
+      --silent    \
+      --location  \
+      https://dl.k8s.io/v1.6.7/kubernetes-server-linux-amd64.tar.gz \
+          | tar --to-stdout -zxf - kubernetes/server/bin/hyperkube > /usr/bin/hyperkube
+    chmod a+x /usr/bin/hyperkube
+    cd /usr/bin/
+    /usr/bin/hyperkube --make-symlinks
+    mkdir -p /var/lib/k8s
+    groupadd kube
+    useradd kube -g kube -d /var/lib/k8s/ -s /bin/false
+    chown kube:kube /var/lib/k8s
+
+    # Using mostly the standard docker-ce install instructions for debian rather
+    # than those of @apokalyptik, also adding docker-compose incase I want to
+    # drive docker directly with compose files.
+    echo "--- Step 2: Install Docker ---"
     curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
     add-apt-repository \
       "deb [arch=amd64] https://download.docker.com/linux/debian \
@@ -89,10 +123,308 @@ Vagrant.configure("2") do |config|
     apt-get update  && \
     apt-get install -y \
       docker-ce        \
-      docker-compose    
+      docker-compose
     #curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.20.0/minikube-linux-amd64 && \
     #chmod +x minikube && \
     #mv minikube /usr/local/bin/
-    echo "======= PROVISIONING COMPLETE =" 
+
+    # @erikbgithub commented on Mar 20  (https://gist.github.com/apokalyptik/99cefb3d2e16b9b0c3141e222f3267db)
+    echo "--Tweek docker systemd opts--"
+    sudo mkdir -p /etc/systemd/system/docker.service.d/
+    cat << EOF | tee /etc/systemd/system/docker.service.d/clear_mount_propagtion_flags.conf
+[Service]
+MountFlags=shared
+EOF
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker.service
+
+    echo "--- Step 3: Install ETCD ---"
+    # Grab HOSTIP going to need it later
+    MY_HOST_IP=`ip -o -4 addr show scope global | awk -F '[ /]+' '/eth0/ {print $4}'`
+    # Give it a home
+    groupadd etcd
+    useradd etcd -d /var/lib/k8s/etcd -s /bin/false -g etcd
+    mkdir -p /var/lib/k8s/etcd
+    chown etcd:etcd /var/lib/k8s/etcd -R
+    # download and install #TODO: get latest build?
+    cd /usr/local/src
+    curl \
+      --silent \
+      --location \
+      'https://github.com/coreos/etcd/releases/download/v3.0.4/etcd-v3.0.4-linux-amd64.tar.gz' \
+        | tar -zvxf-
+    cd etcd-v3.0.4-linux-amd64
+    cp etcd /usr/bin/
+    cp etcdctl /usr/bin/
+    # Define it
+    # Note: use /etc/systemd, not /lib/systemd, thats for proper package installs IMHO
+    cat << EOF > /etc/systemd/system/etcd.service
+[Unit]
+Description=etcd key-value store
+Documentation=https://github.com/coreos/etcd
+
+[Service]
+User=etcd
+Type=notify
+ExecStart=/usr/bin/etcd \\
+  --advertise-client-urls http://$MY_HOST_IP:4001 \\
+  --data-dir /var/lib/k8s/etcd \\
+  --listen-client-urls http://$MY_HOST_IP:4001,http://127.0.0.1:4001
+Restart=always
+RestartSec=10s
+LimitNOFILE=40000
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    # Start it
+    systemctl daemon-reload
+    systemctl enable etcd
+    systemctl start etcd
+
+
+    echo "--- Step 4: FlannelD ---"
+    # Pre-Configure FlannelD via ETCD
+    #TODO: Parameterise the network address to use FLANNEL_NETWORK
+    etcdctl set /coreos.com/network/config '{ "Network": "192.168.1.0/16" }'
+    # Download and install..
+    # TODO: Latest version?
+    cd /usr/local/src
+    curl \
+      --silent \
+      --location \
+      'https://github.com/coreos/flannel/releases/download/v0.5.5/flannel-0.5.5-linux-amd64.tar.gz' \
+        | tar -zvxf-
+    cd flannel-0.5.5
+    cp flanneld /usr/bin
+    mkdir -p /var/lib/k8s/flannel/networks
+    # Define it.
+    # Note /etc/systemd not /lib...
+    cat << EOF > /etc/systemd/system/flanneld.service
+[Unit]
+Description=Network fabric for containers
+Documentation=https://github.com/coreos/flannel
+After=etcd.service
+
+[Service]
+Type=notify
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/flanneld \\
+  -etcd-endpoints=http://$MY_HOST_IP:4001 \\
+  -logtostderr=true \\
+  -subnet-dir=/var/lib/k8s/flannel/networks \\
+  -subnet-file=/var/lib/k8s/flannel/subnet.env
+[Install]
+WantedBy=multi-user.target
+EOF
+    # Start it
+    systemctl daemon-reload
+    systemctl enable flanneld
+    echo "STARTING flanneld"
+    systemctl start flanneld
+
+
+
+    echo "--- Step 5: Reconfigure docker to use FlannelD ---"
+    # redefine it
+    # note /etc/systemd not /lib
+    # TODO: diff dist version and new one and convert to
+    #       /etc/systemd/system/docker.service.d/xxxx
+    cat << EOF > /etc/systemd/system/docker.service
+[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network.target docker.socket flanneld.service etcd.service
+Requires=docker.socket
+
+[Service]
+Type=notify
+EnvironmentFile=-/var/lib/k8s/flannel/subnet.env
+ExecStart=/usr/bin/dockerd -H fd:// --bip=\\\$\{FLANNEL_SUBNET\} --mtu=\\\$\{FLANNEL_MTU\}
+ExecReload=/bin/kill -s HUP \\$MAINPID
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+TimeoutStartSec=0
+Delegate=yes
+KillMode=process
+MountFlags=shared
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # give kube access
+    gpasswd -a kube docker
+    #reload
+    systemctl daemon-reload
+    systemctl restart docker
+
+    echo "--- Step 6: Kubernetes API Server ---"
+    # make a home
+    mkdir -p /var/lib/k8s/kubernetes/crt
+    chown kube:kube /var/lib/k8s/kubernetes/crt /var/lib/k8s/kubernetes
+
+    # define service account
+    if [[ ! -f /var/lib/k8s/kubernetes/kube-serviceaccount.key ]]; then
+    openssl genrsa -out /var/lib/k8s/kubernetes/kube-serviceaccount.key 2048 2>/dev/null
+    fi
+    chown kube:kube /var/lib/k8s/kubernetes/kube-serviceaccount.key
+
+    # define it
+
+cat << EOF > /etc/systemd/system/kube-apiserver.service
+[Unit]
+Description=Kubernetes API Server
+Documentation=https://github.com/kubernetes/kubernetes
+After=network.target etcd.service flanneld.service
+
+[Service]
+EnvironmentFile=-/var/lib/k8s/flannel/subnet.env
+User=kube
+ExecStart=/usr/bin/apiserver \\
+	--advertise_address=$MY_HOST_IP \\
+	--cert-dir=/var/lib/k8s/kubernetes/crt \\
+	--service-account-key-file=/var/lib/k8s/kubernetes/kube-serviceaccount.key \\
+	--service-account-lookup=false \\
+	--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,ResourceQuota \\
+	--bind-address=0.0.0.0 \\
+	--insecure-bind-address=0.0.0.0 \\
+	--insecure-port=8080 \\
+	--etcd-servers=http://$MY_HOST_IP:4001 \\
+	--portal_net=\\\$\{FLANNEL_NETWORK\} \\
+	--logtostderr=true
+Restart=on-failure
+Type=notify
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Enable it
+    systemctl daemon-reload
+    systemctl enable kube-apiserver
+    systemctl start kube-apiserver
+
+
+    echo "--- Step 7: Kubernetes controller-manager ---"
+    # define it
+    cat << EOF > /lib/systemd/system/kube-controller-manager.service
+[Unit]
+Description=Kubernetes Controller Manager
+Documentation=https://github.com/kubernetes/kubernetes
+After=kube-apiserver.service
+
+[Service]
+User=kube
+ExecStart=/usr/bin/controller-manager \\
+  --service-account-private-key-file=/var/lib/k8s/kubernetes/kube-serviceaccount.key \\
+  --root-ca-file=/var/lib/k8s/kubernetes/crt/apiserver.crt \\
+  --enable-hostpath-provisioner=false \\
+  --pvclaimbinder-sync-period=15s \\
+  --master=$MY_HOST_IP:8080 \\
+  --logtostderr=true
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    #Enable it
+    systemctl daemon-reload
+    systemctl enable kube-controller-manager
+    systemctl start kube-controller-manager
+
+
+
+    echo "--- Step 8 Kubernetes Kubelet ---"
+    #Define it
+    cat << EOF > /lib/systemd/system/kube-kubelet.service
+[Unit]
+Description=Kubernetes Kubelet
+Documentation=https://github.com/kubernetes/kubernetes
+After=kube-apiserver.service
+
+[Service]
+User=root
+ExecStart=/usr/bin/kubelet \\
+  --cert-dir=/var/lib/k8s/kubernetes/ \\
+  --chaos-chance=0.0 \\
+  --container-runtime=docker \\
+  --register-schedulable=false \\
+  --address=0.0.0.0 \\
+  --cpu-cfs-quota=false \\
+  --api-servers=$MY_HOST_IP:8080 \\
+  --cluster-dns=8.8.8.8 \\
+  --port=10250 \\
+  --logtostderr=true
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    #Enable it
+    systemctl daemon-reload
+    systemctl enable kube-kubelet
+    service kube-kubelet start
+
+
+    echo "--- Step 9: Kubernetes Proxy ---"
+    #Define it
+    cat << EOF > /lib/systemd/system/kube-proxy.service
+[Unit]
+Description=Kubernetes Proxy
+Documentation=https://github.com/kubernetes/kubernetes
+After=kube-apiserver.service
+
+[Service]
+User=root
+ExecStart=/usr/bin/proxy \\
+  --master=http://$MY_HOST_IP:8080 \\
+  --logtostderr=true
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    #Enable it
+    systemctl daemon-reload
+    systemctl enable kube-proxy
+    systemctl start kube-proxy
+
+    echo "--- Step 10: Kubernetes Scheduler ---"
+    #Define it
+    cat << EOF > /lib/systemd/system/kube-scheduler.service
+[Unit]
+Description=Kubernetes Proxy
+Documentation=https://github.com/kubernetes/kubernetes
+After=kube-apiserver.service
+
+[Service]
+User=kube
+ExecStart=/usr/bin/scheduler \\
+  --master=http://$MY_HOST_IP:8080 \\
+  --logtostderr=true
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    #Enable it
+    systemctl daemon-reload
+    systemctl enable kube-scheduler
+    systemctl start kube-scheduler
+
+    echo "======= PROVISIONING COMPLETE ="
    SHELL
 end
+
+
