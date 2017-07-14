@@ -311,7 +311,7 @@ EOF
 
     echo "--- Step 7: Kubernetes controller-manager ---"
     # define it
-    cat << EOF > /lib/systemd/system/kube-controller-manager.service
+    cat << EOF > /etc/systemd/system/kube-controller-manager.service
 [Unit]
 Description=Kubernetes Controller Manager
 Documentation=https://github.com/kubernetes/kubernetes
@@ -342,7 +342,7 @@ EOF
 
     echo "--- Step 8 Kubernetes Kubelet ---"
     #Define it
-    cat << EOF > /lib/systemd/system/kube-kubelet.service
+    cat << EOF > /etc/systemd/system/kube-kubelet.service
 [Unit]
 Description=Kubernetes Kubelet
 Documentation=https://github.com/kubernetes/kubernetes
@@ -375,7 +375,7 @@ EOF
 
     echo "--- Step 9: Kubernetes Proxy ---"
     #Define it
-    cat << EOF > /lib/systemd/system/kube-proxy.service
+    cat << EOF > /etc/systemd/system/kube-proxy.service
 [Unit]
 Description=Kubernetes Proxy
 Documentation=https://github.com/kubernetes/kubernetes
@@ -400,7 +400,7 @@ EOF
 
     echo "--- Step 10: Kubernetes Scheduler ---"
     #Define it
-    cat << EOF > /lib/systemd/system/kube-scheduler.service
+    cat << EOF > /etc/systemd/system/kube-scheduler.service
 [Unit]
 Description=Kubernetes Proxy
 Documentation=https://github.com/kubernetes/kubernetes
