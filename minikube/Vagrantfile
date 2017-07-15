@@ -166,9 +166,9 @@ Documentation=https://github.com/coreos/etcd
 [Service]
 User=etcd
 Type=notify
-ExecStart=/usr/bin/etcd \\
-  --advertise-client-urls http://$MY_HOST_IP:4001 \\
-  --data-dir /var/lib/k8s/etcd \\
+ExecStart=/usr/bin/etcd \\\\
+  --advertise-client-urls http://$MY_HOST_IP:4001 \\\\
+  --data-dir /var/lib/k8s/etcd \\\\
   --listen-client-urls http://$MY_HOST_IP:4001,http://127.0.0.1:4001
 Restart=always
 RestartSec=10s
@@ -210,10 +210,10 @@ After=etcd.service
 Type=notify
 Restart=always
 RestartSec=5
-ExecStart=/usr/bin/flanneld \\
-  -etcd-endpoints=http://$MY_HOST_IP:4001 \\
-  -logtostderr=true \\
-  -subnet-dir=/var/lib/k8s/flannel/networks \\
+ExecStart=/usr/bin/flanneld \\\\
+  -etcd-endpoints=http://$MY_HOST_IP:4001 \\\\
+  -logtostderr=true \\\\
+  -subnet-dir=/var/lib/k8s/flannel/networks \\\\
   -subnet-file=/var/lib/k8s/flannel/subnet.env
 [Install]
 WantedBy=multi-user.target
@@ -283,17 +283,17 @@ After=network.target etcd.service flanneld.service
 [Service]
 EnvironmentFile=-/var/lib/k8s/flannel/subnet.env
 User=kube
-ExecStart=/usr/bin/apiserver \\
-	--advertise_address=$MY_HOST_IP \\
-	--cert-dir=/var/lib/k8s/kubernetes/crt \\
-	--service-account-key-file=/var/lib/k8s/kubernetes/kube-serviceaccount.key \\
-	--service-account-lookup=false \\
-	--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,ResourceQuota \\
-	--bind-address=0.0.0.0 \\
-	--insecure-bind-address=0.0.0.0 \\
-	--insecure-port=8080 \\
-	--etcd-servers=http://$MY_HOST_IP:4001 \\
-	--portal_net=\\\$\{FLANNEL_NETWORK\} \\
+ExecStart=/usr/bin/apiserver \\\\
+	--advertise_address=$MY_HOST_IP \\\\
+	--cert-dir=/var/lib/k8s/kubernetes/crt \\\\
+	--service-account-key-file=/var/lib/k8s/kubernetes/kube-serviceaccount.key \\\\
+	--service-account-lookup=false \\\\
+	--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,ResourceQuota \\\\
+	--bind-address=0.0.0.0 \\\\
+	--insecure-bind-address=0.0.0.0 \\\\
+	--insecure-port=8080 \\\\
+	--etcd-servers=http://$MY_HOST_IP:4001 \\\\
+	--portal_net=\\\$\{FLANNEL_NETWORK\} \\\\
 	--logtostderr=true
 Restart=on-failure
 Type=notify
@@ -319,12 +319,12 @@ After=kube-apiserver.service
 
 [Service]
 User=kube
-ExecStart=/usr/bin/controller-manager \\
-  --service-account-private-key-file=/var/lib/k8s/kubernetes/kube-serviceaccount.key \\
-  --root-ca-file=/var/lib/k8s/kubernetes/crt/apiserver.crt \\
-  --enable-hostpath-provisioner=false \\
-  --pvclaimbinder-sync-period=15s \\
-  --master=$MY_HOST_IP:8080 \\
+ExecStart=/usr/bin/controller-manager \\\\
+  --service-account-private-key-file=/var/lib/k8s/kubernetes/kube-serviceaccount.key \\\\
+  --root-ca-file=/var/lib/k8s/kubernetes/crt/apiserver.crt \\\\
+  --enable-hostpath-provisioner=false \\\\
+  --pvclaimbinder-sync-period=15s \\\\
+  --master=$MY_HOST_IP:8080 \\\\
   --logtostderr=true
 Restart=on-failure
 LimitNOFILE=65536
@@ -350,16 +350,16 @@ After=kube-apiserver.service
 
 [Service]
 User=root
-ExecStart=/usr/bin/kubelet \\
-  --cert-dir=/var/lib/k8s/kubernetes/ \\
-  --chaos-chance=0.0 \\
-  --container-runtime=docker \\
-  --register-schedulable=false \\
-  --address=0.0.0.0 \\
-  --cpu-cfs-quota=false \\
-  --api-servers=$MY_HOST_IP:8080 \\
-  --cluster-dns=8.8.8.8 \\
-  --port=10250 \\
+ExecStart=/usr/bin/kubelet \\\\
+  --cert-dir=/var/lib/k8s/kubernetes/ \\\\
+  --chaos-chance=0.0 \\\\
+  --container-runtime=docker \\\\
+  --register-schedulable=false \\\\
+  --address=0.0.0.0 \\\\
+  --cpu-cfs-quota=false \\\\
+  --api-servers=$MY_HOST_IP:8080 \\\\
+  --cluster-dns=8.8.8.8 \\\\
+  --port=10250 \\\\
   --logtostderr=true
 Restart=on-failure
 LimitNOFILE=65536
@@ -383,8 +383,8 @@ After=kube-apiserver.service
 
 [Service]
 User=root
-ExecStart=/usr/bin/proxy \\
-  --master=http://$MY_HOST_IP:8080 \\
+ExecStart=/usr/bin/proxy \\\\
+  --master=http://$MY_HOST_IP:8080 \\\\
   --logtostderr=true
 Restart=on-failure
 LimitNOFILE=65536
@@ -408,8 +408,8 @@ After=kube-apiserver.service
 
 [Service]
 User=kube
-ExecStart=/usr/bin/scheduler \\
-  --master=http://$MY_HOST_IP:8080 \\
+ExecStart=/usr/bin/scheduler \\\\
+  --master=http://$MY_HOST_IP:8080 \\\\
   --logtostderr=true
 Restart=on-failure
 LimitNOFILE=65536
