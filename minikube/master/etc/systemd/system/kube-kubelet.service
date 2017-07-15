@@ -1,0 +1,23 @@
+[Unit]
+Description=Kubernetes Kubelet
+Documentation=https://github.com/kubernetes/kubernetes
+After=kube-apiserver.service
+
+[Service]
+User=root
+ExecStart=/usr/bin/kubelet \
+  --cert-dir=/var/lib/k8s/kubernetes/ \
+  --chaos-chance=0.0 \
+  --container-runtime=docker \
+  --register-schedulable=true \
+  --address=0.0.0.0 \
+  --cpu-cfs-quota=false \
+  --api-servers=10.0.2.15:8080 \
+  --cluster-dns=8.8.8.8 \
+  --port=10250 \
+  --logtostderr=true
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,19 @@
+[Unit]
+Description=Kubernetes Controller Manager
+Documentation=https://github.com/kubernetes/kubernetes
+After=kube-apiserver.service
+
+[Service]
+User=kube
+ExecStart=/usr/bin/controller-manager \
+  --service-account-private-key-file=/var/lib/k8s/kubernetes/kube-serviceaccount.key \
+  --root-ca-file=/var/lib/k8s/kubernetes/crt/apiserver.crt \
+  --enable-hostpath-provisioner=false \
+  --pvclaimbinder-sync-period=15s \
+  --master=10.0.2.15:8080 \
+  --logtostderr=true
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

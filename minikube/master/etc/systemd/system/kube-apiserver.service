@@ -1,0 +1,26 @@
+[Unit]
+Description=Kubernetes API Server
+Documentation=https://github.com/kubernetes/kubernetes
+After=network.target etcd.service flanneld.service
+
+[Service]
+EnvironmentFile=-/var/lib/k8s/flannel/subnet.env
+User=kube
+ExecStart=/usr/bin/apiserver \
+	--advertise_address=10.0.2.15 \
+	--cert-dir=/var/lib/k8s/kubernetes/crt \
+	--service-account-key-file=/var/lib/k8s/kubernetes/kube-serviceaccount.key \
+	--service-account-lookup=false \
+	--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,ResourceQuota \
+	--bind-address=0.0.0.0 \
+	--insecure-bind-address=0.0.0.0 \
+	--insecure-port=8080 \
+	--etcd-servers=http://10.0.2.15:4001 \
+	--portal_net=${FLANNEL_NETWORK} \
+	--logtostderr=true
+Restart=on-failure
+Type=notify
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

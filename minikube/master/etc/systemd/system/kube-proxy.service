@@ -1,0 +1,15 @@
+[Unit]
+Description=Kubernetes Proxy
+Documentation=https://github.com/kubernetes/kubernetes
+After=kube-apiserver.service
+
+[Service]
+User=root
+ExecStart=/usr/bin/proxy \
+  --master=http://10.0.2.15:8080 \
+  --logtostderr=true
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
