@@ -160,13 +160,15 @@ function kuber4-flanneld {
     etcdctl set /coreos.com/network/config '{ "Network": "192.168.32.0/19" }'
     # Download and install..
     # TODO: Latest version?
+#      'https://github.com/coreos/flannel/releases/download/v0.5.5/flannel-0.5.5-linux-amd64.tar.gz' \
+
     cd /usr/local/src
     curl \
       --silent \
       --location \
-      'https://github.com/coreos/flannel/releases/download/v0.5.5/flannel-0.5.5-linux-amd64.tar.gz' \
+      'https://github.com/coreos/flannel/releases/download/v0.8.0/flannel-v0.8.0-linux-amd64.tar.gz' \
         | tar -zvxf-
-    cd flannel-0.5.5
+    #cd flannel-0.8.0
     cp flanneld /usr/bin
     mkdir -p /var/lib/k8s/flannel/networks
     # Define it.

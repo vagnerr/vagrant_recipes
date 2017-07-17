@@ -128,13 +128,14 @@ function kuber4-flanneld {
     echo "--- Step 4: FlannelD ---"
     # Download and install..
     # TODO: Latest version?
+#      'https://github.com/coreos/flannel/releases/download/v0.5.5/flannel-0.5.5-linux-amd64.tar.gz' \
     cd /usr/local/src
     curl \
       --silent \
       --location \
-      'https://github.com/coreos/flannel/releases/download/v0.5.5/flannel-0.5.5-linux-amd64.tar.gz' \
+      'https://github.com/coreos/flannel/releases/download/v0.8.0/flannel-v0.8.0-linux-amd64.tar.gz' \
         | tar -zvxf-
-    cd flannel-0.5.5
+    #cd flannel-0.8.0
     cp flanneld /usr/bin
     mkdir -p /var/lib/k8s/flannel/networks
     # Define it.
