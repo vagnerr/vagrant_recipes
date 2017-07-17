@@ -34,14 +34,14 @@ function main {
     apt-dependencies
     kuber1-hyperkube
     kuber2-docker
-    kuber3-etcd
+    #kuber3-etcd        # Not on slave
     kuber4-flanneld
     kuber5-reconfigdocker
-    kuber6-apiserver
-    kuber7-controller
-    kuber8-kublet
+    #kuber6-apiserver   # Not on slave
+    #kuber7-controller
     kuber9-proxy
-    kuber10-scheduler
+    kuber8-kublet
+    #kuber10-scheduler
     echo "======= PROVISIONING COMPLETE =========="
 }
 
@@ -114,50 +114,18 @@ function kuber2-docker {
     # @erikbgithub commented on Mar 20  (https://gist.github.com/apokalyptik/99cefb3d2e16b9b0c3141e222f3267db)
     echo "--Tweek docker systemd opts--"
     sudo mkdir -p /etc/systemd/system/docker.service.d/
-    cp /vagrant/master/etc/systemd/system/docker.service.d/clear_mount_propagtion_flags.conf  \
+    cp /vagrant/slave/etc/systemd/system/docker.service.d/clear_mount_propagtion_flags.conf  \
         /etc/systemd/system/docker.service.d/clear_mount_propagtion_flags.conf
     sudo systemctl daemon-reload
     sudo systemctl restart docker.service
 
 }
 
-function kuber3-etcd {
-    echo "--- Step 3: Install ETCD ---"
-    # Give it a home
-    groupadd etcd
-    useradd etcd -d /var/lib/k8s/etcd -s /bin/false -g etcd
-    mkdir -p /var/lib/k8s/etcd
-    chown etcd:etcd /var/lib/k8s/etcd -R
-    # download and install #TODO: get latest build?
-    cd /usr/local/src
-    curl \
-        --silent \
-        --location \
-        'https://github.com/coreos/etcd/releases/download/v3.0.4/etcd-v3.0.4-linux-amd64.tar.gz' \
-        | tar -zvxf-
-    cd etcd-v3.0.4-linux-amd64
-    cp etcd /usr/bin/
-    cp etcdctl /usr/bin/
-    # Define it
-    # Note: use /etc/systemd, not /lib/systemd, thats for proper package installs IMHO
-    cat /vagrant/master/etc/systemd/system/etcd.service \
-        | sed -e "s/@@MY_HOST_IP@@/$MY_HOST_IP/" \
-        > /etc/systemd/system/etcd.service
-
-    # Start it
-    systemctl daemon-reload
-    systemctl enable etcd
-    systemctl start etcd
-
-}
 
 function kuber4-flanneld {
 
 
     echo "--- Step 4: FlannelD ---"
-    # Pre-Configure FlannelD via ETCD
-    #TODO: Parameterise the network address to use FLANNEL_NETWORK
-    etcdctl set /coreos.com/network/config '{ "Network": "192.168.32.0/19" }'
     # Download and install..
     # TODO: Latest version?
     cd /usr/local/src
@@ -171,8 +139,8 @@ function kuber4-flanneld {
     mkdir -p /var/lib/k8s/flannel/networks
     # Define it.
     # Note /etc/systemd not /lib...
-    cat /vagrant/master/etc/systemd/system/flanneld.service \
-        | sed -e "s/@@MY_HOST_IP@@/$MY_HOST_IP/" \
+    cat /vagrant/slave/etc/systemd/system/flanneld.service \
+        | sed -e "s/@@MASTER_IP@@/$MASTER_IP/" \
         > /etc/systemd/system/flanneld.service
 
     # Start it
@@ -191,7 +159,7 @@ function kuber5-reconfigdocker {
     # note /etc/systemd not /lib
     # TODO: diff dist version and new one and convert to
     #       /etc/systemd/system/docker.service.d/xxxx
-    cp /vagrant/master/etc/systemd/system/docker.service  \
+    cp /vagrant/slave/etc/systemd/system/docker.service  \
         /etc/systemd/system/docker.service
 
     # give kube access
@@ -203,70 +171,15 @@ function kuber5-reconfigdocker {
 }
 
 
-function kuber6-apiserver {
-
-    echo "--- Step 6: Kubernetes API Server ---"
-    # make a home
-    mkdir -p /var/lib/k8s/kubernetes/crt
-    chown kube:kube /var/lib/k8s/kubernetes/crt /var/lib/k8s/kubernetes
-
-    # define service account
-    if [[ ! -f /var/lib/k8s/kubernetes/kube-serviceaccount.key ]]; then
-    openssl genrsa -out /var/lib/k8s/kubernetes/kube-serviceaccount.key 2048 2>/dev/null
-    fi
-    chown kube:kube /var/lib/k8s/kubernetes/kube-serviceaccount.key
-
-    # define it
-    cat /vagrant/master/etc/systemd/system/kube-apiserver.service \
-        | sed -e "s/@@MY_HOST_IP@@/$MY_HOST_IP/" \
-        > /etc/systemd/system/kube-apiserver.service
-
-    # Enable it
-    systemctl daemon-reload
-    systemctl enable kube-apiserver
-    systemctl start kube-apiserver
 
 
-}
-
-function kuber7-controller {
-
-    echo "--- Step 7: Kubernetes controller-manager ---"
-    # define it
-    cat /vagrant/master/etc/systemd/system/kube-controller-manager.service \
-        | sed -e "s/@@MASTER_IP@@/$MASTER_IP/" \
-        > /etc/systemd/system/kube-controller-manager.service
-
-
-    #Enable it
-    systemctl daemon-reload
-    systemctl enable kube-controller-manager
-    systemctl start kube-controller-manager
-
-
-}
-
-function kuber8-kublet {
-
-    echo "--- Step 8 Kubernetes Kubelet ---"
-    #Define it
-    cat /vagrant/master/etc/systemd/system/kube-kubelet.service \
-        | sed -e "s/@@MASTER_IP@@/$MASTER_IP/" \
-        > /etc/systemd/system/kube-kubelet.service
-
-    #Enable it
-    systemctl daemon-reload
-    systemctl enable kube-kubelet
-    service kube-kubelet start
-
-}
 
 
 function kuber9-proxy {
 
     echo "--- Step 9: Kubernetes Proxy ---"
     #Define it
-    cat /vagrant/master/etc/systemd/system/kube-proxy.service \
+    cat /vagrant/slave/etc/systemd/system/kube-proxy.service \
         | sed -e "s/@@MASTER_IP@@/$MASTER_IP/" \
         > /etc/systemd/system/kube-proxy.service
 
@@ -276,18 +189,19 @@ function kuber9-proxy {
     systemctl start kube-proxy
 }
 
-function kuber10-scheduler {
 
-    echo "--- Step 10: Kubernetes Scheduler ---"
+function kuber8-kublet {
+
+    echo "--- Step 8 Kubernetes Kubelet ---"
     #Define it
-    cat /vagrant/master/etc/systemd/system/kube-scheduler.service \
+    cat /vagrant/slave/etc/systemd/system/kube-kubelet.service \
         | sed -e "s/@@MASTER_IP@@/$MASTER_IP/" \
-        > /etc/systemd/system/kube-scheduler.service
+        > /etc/systemd/system/kube-kubelet.service
 
     #Enable it
     systemctl daemon-reload
-    systemctl enable kube-scheduler
-    systemctl start kube-scheduler
+    systemctl enable kube-kubelet
+    service kube-kubelet start
 
 }
 

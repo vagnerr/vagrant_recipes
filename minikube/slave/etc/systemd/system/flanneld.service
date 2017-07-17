@@ -1,0 +1,17 @@
+[Unit]
+Description=Network fabric for containers
+Documentation=https://github.com/coreos/flannel
+After=etcd.service
+
+[Service]
+Type=notify
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/flanneld \
+  -etcd-endpoints=http://@@MASTER_IP@@:4001 \
+  -logtostderr=true \
+  -subnet-dir=/var/lib/k8s/flannel/networks \
+  -subnet-file=/var/lib/k8s/flannel/subnet.env \
+  -iface eth1
+[Install]
+WantedBy=multi-user.target

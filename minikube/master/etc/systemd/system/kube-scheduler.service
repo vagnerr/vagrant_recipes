@@ -6,7 +6,7 @@ After=kube-apiserver.service
 [Service]
 User=kube
 ExecStart=/usr/bin/scheduler \
-  --master=http://10.0.2.15:8080 \
+  --master=http://@@MASTER_IP@@:8080 \
   --logtostderr=true
 Restart=on-failure
 LimitNOFILE=65536
