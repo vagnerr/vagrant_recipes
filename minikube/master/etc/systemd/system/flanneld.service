@@ -11,6 +11,7 @@ ExecStart=/usr/bin/flanneld \
   -etcd-endpoints=http://@@MY_HOST_IP@@:4001 \
   -logtostderr=true \
   -subnet-dir=/var/lib/k8s/flannel/networks \
-  -subnet-file=/var/lib/k8s/flannel/subnet.env
+  -subnet-file=/var/lib/k8s/flannel/subnet.env \
+  -iface eth1
 [Install]
 WantedBy=multi-user.target

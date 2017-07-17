@@ -23,8 +23,8 @@ function main {
 
 function getenvs {
     # Grab HOSTIP going to need it later
-    MY_HOST_IP=`ip -o -4 addr show scope global | awk -F '[ /]+' '/eth0/ {print $4}'`
-
+    #MY_HOST_IP=`ip -o -4 addr show scope global | awk -F '[ /]+' '/eth0/ {print $4}'`
+    MY_HOST_IP="10.0.3.101"
 }
 
 function apt-refresh {
@@ -133,7 +133,7 @@ function kuber4-flanneld {
     echo "--- Step 4: FlannelD ---"
     # Pre-Configure FlannelD via ETCD
     #TODO: Parameterise the network address to use FLANNEL_NETWORK
-    etcdctl set /coreos.com/network/config '{ "Network": "192.168.1.0/16" }'
+    etcdctl set /coreos.com/network/config '{ "Network": "192.168.32.0/19" }'
     # Download and install..
     # TODO: Latest version?
     cd /usr/local/src
