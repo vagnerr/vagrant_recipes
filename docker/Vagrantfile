@@ -96,4 +96,6 @@ Vagrant.configure("2") do |config|
       docker-compose
     usermod -aG docker vagrant
   SHELL
+  # Note vagrant added to docker group as per https://docs.docker.com/engine/installation/linux/linux-postinstall
+  # don't need to add the group as package install handles that for us also systemclt is allready enabled
 end
