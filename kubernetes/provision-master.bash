@@ -1,6 +1,6 @@
 #!/bin/bash
 
-while [[ $# -gt 1 ]]
+while [[ $# -ge 1 ]]
 do
 key="$1"
 
@@ -15,7 +15,9 @@ case $key in
     ;;
     -t|--test)
     TESTMODE=1
-    shift # past argument
+    ;;
+    -p|--post)
+    POSTMODE=1
     ;;
     *)
        echo "invalid args"
@@ -24,6 +26,11 @@ case $key in
 esac
 shift # past argument or value
 done
+
+echo "IP $MASTER_IP"
+echo "HOST $MY_HOST_IP"
+echo "TEST $TESTMODE"
+echo "POST $POSTMODE"
 
 
 function main {
@@ -35,10 +42,16 @@ function main {
     install-kubernetes
     start-master
     settup-nonpriv
-    settup-flannel
-    settup-dashboard
+   # settup-flannel
+   # settup-dashboard
 
     echo "======= PROVISIONING COMPLETE =========="
+}
+
+function postmode {
+    echo "==== executing post mode commands ===="
+    settup-flannel
+    settup-dashboard
 }
 
 #function getenvs {
@@ -72,7 +85,7 @@ function install-kubernetes {
 
 function start-master {
     echo "======= start master ========"
-    kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address $MASTER_IP
+    kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address $MASTER_IP --token d7691e.f8ed3c10ca47cb36
 
 }
 
@@ -85,7 +98,8 @@ function settup-nonpriv {
 
 function settup-flannel {
     echo "======= settup flannel  ======="
-    su -lc "kubectl create -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel-rbac.yml --namespace=kube-system" ubuntu
+
+    #su -lc "kubectl create -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/k8s-manifests/kube-flannel-rbac.yml --namespace=kube-system" ubuntu
     su -lc "kubectl create -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml --namespace=kube-system" ubuntu
 }
 
@@ -116,5 +130,12 @@ if [ $TESTMODE ]
 then
     echo "Test mode functions defined only."
 else
-    main
+    if [ $POSTMODE ]
+    then
+        echo "postmode"
+        postmode
+    else
+        echo "mainrun"
+        main
+    fi
 fi
