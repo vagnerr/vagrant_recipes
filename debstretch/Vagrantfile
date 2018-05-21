@@ -98,6 +98,7 @@ Vagrant.configure("2") do |config|
       chown vagrant:vagrant /home/vagrant/.ssh/authorized_keys2 && \
       chmod 600 /home/vagrant/.ssh/authorized_keys2 && \
       ln -s /vagrant_data/debstretch/ /home/vagrant/data && \
+      sudo -u vagrant git clone https://github.com/magicmonty/bash-git-prompt.git .bash-git-prompt &&\
       sudo -u vagrant git clone https://github.com/vagnerr/dotfiles.git .dotfiles  &&\
       sudo -u vagrant .dotfiles/install &&\
       echo "#############################################" &&\
