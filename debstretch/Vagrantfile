@@ -103,6 +103,8 @@ Vagrant.configure("2") do |config|
       chmod 644 /etc/samba/smb.conf && \
       /etc/init.d/samba restart && \
       cat /vagrant_data/debstretch/id/sambapwd | /usr/bin/smbpasswd -a vagrant && \
+      update-alternatives --install /usr/bin/python python /usr/bin/python2.7 1 && \
+      update-alternatives --install /usr/bin/python python /usr/bin/python3.5 2 && \
       ln -s /vagrant_data/debstretch/ /home/vagrant/data && \
       sudo -u vagrant git clone https://github.com/magicmonty/bash-git-prompt.git .bash-git-prompt &&\
       sudo -u vagrant git clone https://github.com/vagnerr/dotfiles.git .dotfiles  &&\
