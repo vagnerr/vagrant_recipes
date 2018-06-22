@@ -48,14 +48,14 @@ function main {
 function apt-refresh {
     # Refresh debian install and minimum extra packages
     echo "======= apt refresh ==========="
-    apt-get update
-    apt-get upgrade -y
+    apt-get update -q
+    apt-get upgrade -qy
 }
 
 
 function install-docker {
-    echo "======= install docker ==========="
-    apt-get install -y docker.io
+echo "======= install docker ==========="
+    apt-get install -qy docker.io
 }
 
 
@@ -64,13 +64,15 @@ function install-kubernetes {
     curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
     echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.list.d/kubernetes.list
     apt-get update
-    apt-get install -y --allow-unauthenticated kubelet kubeadm kubectl kubernetes-cni
+    apt-get install -qy --allow-unauthenticated kubelet kubeadm kubernetes-cni
 
 }
 
 function start-slave {
+    swapoff -a
                         # HARDCODED COPY TODO: fix with master properly
-    kubeadm join --token  d7691e.f8ed3c10ca47cb36 $MASTER_IP:6443
+                        # TODO: Need to use propper disco token.... as well
+    kubeadm join --token  d7691e.f8ed3c10ca47cb36 --discovery-token-unsafe-skip-ca-verification $MASTER_IP:6443
 }
 
 

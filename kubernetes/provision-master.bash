@@ -32,6 +32,8 @@ echo "HOST $MY_HOST_IP"
 echo "TEST $TESTMODE"
 echo "POST $POSTMODE"
 
+USERNAME=vagrant
+
 
 function main {
     set -e  # abort on failure
@@ -42,7 +44,9 @@ function main {
     install-kubernetes
     start-master
     settup-nonpriv
-   # settup-flannel
+    # Pause here to let kubernetes stabilise ( # TODO: proper waitstable )
+    sleep 60
+    settup-flannel
    # settup-dashboard
 
     echo "======= PROVISIONING COMPLETE =========="
@@ -63,14 +67,14 @@ function postmode {
 function apt-refresh {
     # Refresh debian install and minimum extra packages
     echo "======= apt refresh ==========="
-    apt-get update
-    apt-get upgrade -y
+    apt-get update -q
+    apt-get upgrade -qy
 }
 
 
 function install-docker {
     echo "======= install docker ==========="
-    apt-get install -y docker.io
+    apt-get install -qy docker.io
 }
 
 
@@ -79,40 +83,44 @@ function install-kubernetes {
     curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
     echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.list.d/kubernetes.list
     apt-get update
-    apt-get install -y --allow-unauthenticated kubelet kubeadm kubectl kubernetes-cni
+    apt-get install -qy kubelet kubeadm kubernetes-cni
 
 }
 
 function start-master {
     echo "======= start master ========"
-    kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address $MASTER_IP --token d7691e.f8ed3c10ca47cb36
+    # kubernetes > 1.7 doesn't like swap + it doesnt make sense anyway See https://github.com/kubernetes/kubernetes/issues/53533
+    #  ( TODO: set this properly)
+    swapoff -a
+    kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address $MASTER_IP --kubernetes-version stable-1.10 --token d7691e.f8ed3c10ca47cb36
 
 }
 
 function settup-nonpriv {
     echo "======= settup non-prived user ======="
-    mkdir -p /home/ubuntu/.kube
-    cp -i /etc/kubernetes/admin.conf  /home/ubuntu/.kube/config
-    chown -R ubuntu:ubuntu  /home/ubuntu/.kube
+    mkdir -p /home/$USERNAME/.kube
+    cp -i /etc/kubernetes/admin.conf  /home/$USERNAME/.kube/config
+    chown -R $USERNAME:$USERNAME  /home/$USERNAME/.kube
 }
 
 function settup-flannel {
     echo "======= settup flannel  ======="
 
-    #su -lc "kubectl create -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/k8s-manifests/kube-flannel-rbac.yml --namespace=kube-system" ubuntu
-    su -lc "kubectl create -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml --namespace=kube-system" ubuntu
+#    su -lc "kubectl create -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml" $USERNAME
+    su -lc "kubectl create -f /vagrant/kube-flannel.yml" $USERNAME
+    #su -lc "kubectl create -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/k8s-manifests/kube-flannel-rbac.yml" $USERNAME
 }
 
 function settup-dashboard {
     echo "======= settup dashboard  ======="
-    su -lc "kubectl create -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/influxdb.yaml" ubuntu
-    su -lc "kubectl create -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/grafana.yaml" ubuntu
-    su -lc "kubectl create -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/heapster.yaml" ubuntu
-    su -lc "kubectl create -f https://raw.githubusercontent.com/kubernetes/kops/master/addons/kubernetes-dashboard/v1.6.3.yaml" ubuntu
-    su -lc "kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/rbac/heapster-rbac.yaml" ubuntu
+    su -lc "kubectl create -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/influxdb.yaml" $USERNAME
+    su -lc "kubectl create -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/grafana.yaml" $USERNAME
+    su -lc "kubectl create -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/heapster.yaml" $USERNAME
+    su -lc "kubectl create -f https://raw.githubusercontent.com/kubernetes/kops/master/addons/kubernetes-dashboard/v1.6.3.yaml" $USERNAME
+    su -lc "kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/rbac/heapster-rbac.yaml" $USERNAME
 
     # "special" LB proxy service so we can see it externally on http://masterip:30888
-    su -lc "kubectl create -f /vagrant/kuberdashboard3.yaml" ubuntu
+    su -lc "kubectl create -f /vagrant/kuberdashboard3.yaml" $USERNAME
 
 
 }
