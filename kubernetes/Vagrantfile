@@ -17,6 +17,7 @@ Vagrant.configure("2") do |config|
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
   config.vm.box = "ubuntu/xenial64"
+     # NOTE TESTED WORKING WITH version '20180621.0.0'.
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -68,6 +69,7 @@ Vagrant.configure("2") do |config|
   config.vm.define "master", primary: true do |master|
     master.vm.hostname = "kmaster"
     master.vm.network "public_network", ip: "172.16.1.201"
+    master.vm.network "forwarded_port", host: 8001, guest: 8001, guest_ip: "127.0.0.1", host_ip: "127.0.0.1" # forwarding 8001 for Kubernetes dashboard
     master.vm.provision "shell", inline: <<-SHELL
       /vagrant/provision-master.bash --master 172.16.1.201 --host 172.16.1.201
     SHELL
