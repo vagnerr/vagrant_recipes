@@ -2,37 +2,58 @@
 # vi: set ft=ruby :
 
 require 'ipaddr'
+require 'getoptlong'
 
-# Define some globals
+# Define some global defaults
 # Master IP, ( slaves are allocated by incrementing from this base ip)
 MASTER_IP   = "172.16.1.201"
 SLAVE_COUNT = 2
+
+
+# set variables that can be overridden
+master_ip = MASTER_IP
+slave_count=SLAVE_COUNT
+# Allow command line overrides
+# NOTE: if slaves > SLAVE_COUNT used then argument will need to be used for
+#       destroy -f, otherwise the additional hosts will not be removed
+opts = GetoptLong.new(
+  [ '--slaves',   GetoptLong::OPTIONAL_ARGUMENT],
+  [ '--masterip', GetoptLong::OPTIONAL_ARGUMENT]
+)
+
+opts.each do |opt, arg|
+  case opt
+  when '--slaves'
+    slave_count=arg.to_i
+  when '--masterip'
+    master_ip=arg
+  end
+end
 
 
 Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/xenial64"     # NOTE TESTED WORKING WITH version '20180621.0.0'.
 
   # config.vm.synced_folder "../data", "/vagrant_data"
-
+  puts( "MASTER: \tip = #{master_ip}")
   config.vm.define "master", primary: true do |master|
     master.vm.hostname = "kmaster"
-    master.vm.network "public_network", ip: MASTER_IP
+    master.vm.network "public_network", ip: "#{master_ip}"
     master.vm.network "forwarded_port", host: 8001, guest: 8001, guest_ip: "127.0.0.1", host_ip: "127.0.0.1" # forwarding 8001 for Kubernetes dashboard
     master.vm.provision "shell", inline: <<-SHELL
-      /vagrant/provision-master.bash --master #{MASTER_IP} --host #{MASTER_IP}
+      /vagrant/provision-master.bash --master #{master_ip} --host #{master_ip}
     SHELL
   end
 
-
-  ip_addr = IPAddr.new MASTER_IP
-
-  (1..SLAVE_COUNT).each do |i|
+  ip_addr = IPAddr.new "#{master_ip}"
+  (1..slave_count).each do |i|
+    ip_addr = ip_addr.succ
+    puts( "SLAVE-#{i}:\tip = #{ip_addr}")
     config.vm.define "slave#{i}" do |slave|
-      ip_addr = ip_addr.succ
       slave.vm.hostname = "kslave#{i}"
       slave.vm.network "public_network", ip: "#{ip_addr}"
       slave.vm.provision "shell", inline: <<-SHELL
-        /vagrant/provision-slave.bash --master #{MASTER_IP} --host #{ip_addr}
+        /vagrant/provision-slave.bash --master #{master_ip} --host #{ip_addr}
       SHELL
     end
   end
