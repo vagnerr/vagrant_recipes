@@ -9,6 +9,7 @@
 
 # Start dashboard
 #  (https://git.io/kube-dashboard shortlink is no longer valid so using new direct link )
+#  (few alternates to this simple dumb install at https://github.com/kubernetes/dashboard/wiki/Installation#recommended-setup)
 kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
 
 
