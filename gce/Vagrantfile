@@ -1,0 +1,33 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+#  config.vm.box = "base"
+  config.vm.box = "google/gce"
+
+  config.vm.provider :google do |google, override|
+    google.google_project_id = "vagrant-experiments"
+    google.google_client_email = "vagrant@vagrant-experiments.iam.gserviceaccount.com"
+
+    # NOTE: DO NOT place this inside the vagrant working dir as that will be
+    #       syncronised to the new vm host which will comprimise the secret key.
+    google.google_json_key_location = "../../data/vagrant-experiments-bfe2ac53d9bf.json"
+
+    google.image_family = 'ubuntu-1604-lts'
+
+    override.ssh.username = "peter"
+    #override.ssh.private_key_path = "~/.ssh/id_rsa"
+    override.ssh.private_key_path = "C:\\Users\\Peter\\.ssh\\id_rsa"
+    #override.ssh.private_key_path = "~/.ssh/google_compute_engine"
+  end
+
+
+
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+  # config.vm.provision "shell", inline: <<-SHELL
+  #   apt-get update
+  #   apt-get install -y apache2
+  # SHELL
+end
