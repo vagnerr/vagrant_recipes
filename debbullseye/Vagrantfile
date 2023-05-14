@@ -1,0 +1,150 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://vagrantcloud.com/search.
+  #   contrib-stretch64 includes the virtualbox kernel modules saving us the
+  #   the effort of installing additions ourselves
+  config.vm.box = "debian/bullseye64"
+
+  # Disable automatic box update checking. If you disable this, then
+  # boxes will only be checked for updates when the user runs
+  # `vagrant box outdated`. This is not recommended.
+  # config.vm.box_check_update = false
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # NOTE: This will enable public access to the opened port
+  # config.vm.network "forwarded_port", guest: 80, host: 8080
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine and only allow access
+  # via 127.0.0.1 to disable public access
+  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  #  On MAC addresses:
+  #   * When spinning up loads of test runs I don't want to exhaust my DHCP server
+  #   * Virtualbox uses 08:00:27:xx.. ( they now use 0A:00:27:.. to me standards compliant)
+  #     * second least significant bit as 1 means localy not universal management
+  #       ( https://en.wikipedia.org/wiki/MAC_address#Address_details )
+  #   * using 0E as thats standards compliane for local and should not interfere with Virtualbox
+  #     ( https://stackoverflow.com/questions/12538162/setting-a-vms-mac-address-in-vagrant )
+  config.vm.network "public_network", :mac=> "0E0027000005"
+
+  config.vm.hostname = "debbullseye"
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  # config.vm.synced_folder "../data", "/vagrant_data"
+
+#  #############################################################################
+#  # Uncomment *AFTER* first vagrant up so the VBadditions has time to install #
+#  #############################################################################
+#  if File.exist?(".vagrant/machines/default/virtualbox/action_provision")
+    config.vm.synced_folder "../../data", "/vagrant_data"
+#  else
+#    # hold off on the sync
+#  end
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  # Example for VirtualBox:
+  #
+  config.vm.provider "virtualbox" do |vb|
+  #   # Display the VirtualBox GUI when booting the machine
+  #   vb.gui = true
+  #
+  #   # Customize the amount of memory on the VM:
+    vb.memory = "1024"
+  end
+  #
+  # View the documentation for the provider you are using for more
+  # information on available options.
+
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+  config.vm.provision "shell", inline: <<-SHELL
+    apt-get update                      && \
+    apt-get upgrade -y                  && \
+    apt-get install -y                  \
+      apt-transport-https               \
+      ca-certificates                   \
+      build-essential                   \
+      python3                           \
+      python3-venv                      \
+      python3-pip                       \
+      git                               \
+      net-tools                         \
+      vim                               \
+      curl                              \
+      samba                             \
+      etckeeper                         && \
+      cp /vagrant_data/authorized_keys /home/vagrant/.ssh/authorized_keys2 && \
+      chown vagrant:vagrant /home/vagrant/.ssh/authorized_keys2 && \
+      chmod 600 /home/vagrant/.ssh/authorized_keys2 && \
+      cp /vagrant_data/debstretch/samba/smb.conf /etc/samba/smb.conf && \
+      chmod 644 /etc/samba/smb.conf && \
+      /etc/init.d/samba restart && \
+      cat /vagrant_data/debstretch/id/sambapwd | /usr/bin/smbpasswd -a vagrant && \
+      update-alternatives --install /usr/bin/python python /usr/bin/python2.7 1 && \
+      update-alternatives --install /usr/bin/python python /usr/bin/python3.5 2 && \
+      ln -s /vagrant_data/debstretch/ /home/vagrant/data && \
+      sudo -u vagrant git clone https://github.com/magicmonty/bash-git-prompt.git .bash-git-prompt &&\
+      sudo -u vagrant git clone https://github.com/vagnerr/dotfiles.git .dotfiles  &&\
+      sudo -u vagrant .dotfiles/install &&\
+      echo "#############################################" &&\
+      echo "IP Address - " `hostname -I` &&\
+      echo "#############################################"
+  SHELL
+
+  # Samba init attempts ( that didnt work )
+  #/usr/bin/pdbedit -i tdbsam:/vagrant_data/debstretch/samba/smbpasswd.tdbsam -e tdbsam:/var/lib/samba/private/passdb.tdb && \
+  #/usr/bin/pdbedit -i tdbsam:/vagrant_data/debstretch/samba/smbpasswd.tdbsam && \
+
+  # todo/stuff:
+  # REACT...
+  #    1 - nodejs  + npm from nodesource repo rather than debian...
+  #         ( https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions)
+  #       curl -sL https://deb.nodesource.com/setup_9.x | sudo -E bash -
+  #       sudo apt-get install -y nodejs
+  #    2 - create-react-app install
+  #       sudo npm install --global create-react-app
+  # PYTHON -> Pyramid Tutorial
+  #    1 - update alternates.. make python3 default... ( https://linuxconfig.org/how-to-change-default-python-version-on-debian-9-stretch-linux )
+  #       update-alternatives --install /usr/bin/python python /usr/bin/python2.7 1
+  #       update-alternatives --install /usr/bin/python python /usr/bin/python3.5 2
+  #    2 - virtual envs settup  ( neeeds python3-venv module)
+  #        $ export VENV=~/projects/quick_tutorial/env
+  #        $ python3 -m venv $VENV
+  #    3 - update packaging tools
+  #        $ $VENV/bin/pip install --upgrade pip setuptools
+  #    4 - install pyramid
+  #        $VENV/bin/pip install "pyramid==1.9.1" waitress
+  #        $VENV/bin/pip install webtest pytest pytest-cov deform sqlalchemy \
+  #        pyramid_chameleon pyramid_debugtoolbar pyramid_jinja2 waitress \
+  #        pyramid_tm zope.sqlalchemy
+
+  # Other usefull modules?
+  #   locate
+  #   apt-rdepends
+
+end
